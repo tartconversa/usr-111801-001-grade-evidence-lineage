@@ -44,3 +44,16 @@ class Catalog:
         if row is None:
             raise KeyError(asset_id)
         return dict(row)
+
+    def invalidate(self, asset_id, at, actor, reason):
+        asset = self.connection.execute("SELECT state FROM assets WHERE id=?", (asset_id,)).fetchone()
+        if asset is None:
+            raise KeyError(asset_id)
+        if asset["state"] != "active":
+            raise ValueError("材料已不在有效状态")
+        with self.connection:
+            self.connection.execute(
+                "UPDATE assets SET state='invalid', valid_to=? WHERE id=?",
+                (at, asset_id),
+            )
+            write(self.connection, at, actor, "asset.invalidate", asset_id, {"reason": reason})
